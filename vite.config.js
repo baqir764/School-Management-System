@@ -21,7 +21,15 @@ export default defineConfig({
     base: './',
     plugins: [
         laravel({
-            input: ['resources/css/app.scss', 'resources/css/app-rtl.scss', 'resources/js/app.js'],
+            input: [
+                'resources/css/app.scss',
+                'resources/css/app-rtl.scss',
+                'resources/js/app.js',
+                // Dashboard-only entry; Chart.js is dynamically imported
+                // inside it, so it becomes a separate lazy chunk instead of
+                // being bundled into app.js (which every page loads).
+                'resources/js/dashboard.js',
+            ],
             refresh: true,
         }),
     ],

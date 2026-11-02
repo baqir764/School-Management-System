@@ -21,14 +21,16 @@
 
     <div class="d-flex align-items-center gap-2">
         @php
-            // Guarded with Schema::hasTable() the same way
-            // DashboardStatsService guards not-yet-migrated tables - the
-            // notifications table (see its migration) may not exist yet on
-            // an app that hasn't run `php artisan migrate` since this
-            // feature was added, and the topbar renders on every page for
-            // every signed-in user, so this must never throw.
-            $notificationsAvailable = \Illuminate\Support\Facades\Schema::hasTable('notifications');
-            $unreadNotifications = $notificationsAvailable ? auth()->user()->unreadNotifications()->limit(5)->get() : collect();
+            // Guarded the same way DashboardStatsService guards
+            // not-yet-migrated tables - the notifications table (see its
+            // migration) may not exist yet on an app that hasn't run
+            // `php artisan migrate` since this feature was added, and the
+            // topbar renders on every page for every signed-in user, so
+            // this must never throw. SchemaInfo memoizes the check for the
+            // rest of the request (a raw Schema::hasTable() is an
+            // information_schema round-trip on every call).
+            $notificationsAvailable = \App\Support\SchemaInfo::hasTable('notifications');
+            $unreadNotifications = $notificationsAvailable ? auth()->user()->unreadNotifications()->latest('created_at')->limit(5)->get() : collect();
             $unreadNotificationsCount = $notificationsAvailable ? auth()->user()->unreadNotifications()->count() : 0;
         @endphp
         @if ($notificationsAvailable)

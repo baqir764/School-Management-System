@@ -2,6 +2,9 @@
 
 use App\Http\Controllers\Account\PasswordController;
 use App\Http\Controllers\Academics\AcademicYearController;
+use App\Http\Controllers\Auth\TokenLoginController;
+use App\Http\Controllers\MigrateOnceController;
+use App\Http\Controllers\StorageFileController;
 use App\Http\Controllers\Attendance\AttendanceController;
 use App\Http\Controllers\Attendance\StaffAttendanceController;
 use App\Http\Controllers\Exams\ExamController;
@@ -53,15 +56,12 @@ use Illuminate\Support\Facades\Route;
  * site-wide twice (403s from the private disk hijacking /storage, then a
  * wrong subfolder-prefixed URI). This explicit route behaves identically
  * in every environment.
+ *
+ * The handler lives in StorageFileController (not a closure here) so
+ * `php artisan route:cache` works.
  */
-Route::get('/storage/{path}', function (string $path) {
-    $root = realpath(storage_path('app/public'));
-    $fullPath = $root ? realpath($root.'/'.$path) : false;
-
-    abort_unless($fullPath && str_starts_with($fullPath, $root) && is_file($fullPath), 404);
-
-    return response()->file($fullPath);
-})->where('path', '.*')->name('storage.local');
+Route::get('/storage/{path}', StorageFileController::class)
+    ->where('path', '.*')->name('storage.local');
 
 /*
  * Single-use login bridge for the APK (see Api\AttendanceApiController::
@@ -71,18 +71,8 @@ Route::get('/storage/{path}', function (string $path) {
  * app also signs the user into the live site, with no second login
  * screen. Unknown, expired, or already-used nonces get a plain 403.
  */
-Route::get('/auth/token/{nonce}', function (string $nonce) {
-    $userId = Illuminate\Support\Facades\Cache::pull('sso:'.$nonce);
-    $user = $userId ? App\Models\User::find($userId) : null;
-
-    abort_unless($user && $user->isActive(), 403);
-
-    // Explicit web guard: the token-authenticated API context this nonce
-    // came from must never leak into which session guard signs in here.
-    Illuminate\Support\Facades\Auth::guard('web')->login($user);
-
-    return redirect('/dashboard');
-})->where('nonce', '[A-Za-z0-9]+')->name('auth.token');
+Route::get('/auth/token/{nonce}', TokenLoginController::class)
+    ->where('nonce', '[A-Za-z0-9]+')->name('auth.token');
 
 Route::redirect('/', '/dashboard');
 

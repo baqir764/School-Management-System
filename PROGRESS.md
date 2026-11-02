@@ -236,6 +236,37 @@ permission check.
   long *wipe*-list of every school table, so a future migration's new
   table is wiped by default — the safer failure mode.
 
+## Performance & offline pass — DONE (2026-11-02)
+
+Full inspection + speed/offline optimization so the app runs fast on any
+laptop with no internet at runtime. Details in `PERFORMANCE.md`.
+
+- **Offline by construction**: all CSS/JS/fonts are local (Vite build in
+  `public/build/` is committed; QR libs in `public/vendor/`). No CDN,
+  Google Fonts, or external API anywhere — verified by scanning views.
+- **DB indexes**: new migration adds indexes on all hot non-FK columns
+  (attendance date, payment dates, due_date, salary_month, exam
+  start_date, status/gender/is_active flags, notifications.read_at, ...).
+- **Fewer queries per page**: dashboard card counts collapsed into 2
+  aggregate queries (was ~15 COUNTs); users-by-role is one GROUP BY on the
+  permission pivots (was: load every user); unused recentAdmissions/
+  recentPayments/recentAnnouncements dashboard queries removed; topbar's
+  per-page `Schema::hasTable()` replaced by the per-request-memoized
+  `App\Support\SchemaInfo`; `Setting::current()` memoized per request
+  (container-scoped, so tests stay correct) on top of its cache entry.
+- **route:cache unblocked**: the 3 route closures (`/storage/{path}`,
+  `/auth/token/{nonce}`, `/migrate-once-9f3k2`) moved into invokable
+  controllers (`StorageFileController`, `TokenLoginController`,
+  `MigrateOnceController`) — closures break `php artisan route:cache`.
+  `optimize.bat` / `optimize.sh` now run migrate + optimize in one step.
+- **Smaller pages**: Chart.js (~200 KB) no longer ships in the global
+  bundle — it is a dashboard-only entry (`resources/js/dashboard.js`)
+  that lazy-loads via dynamic import; unused axios bundle removed;
+  `.htaccess` now gzip-compresses text and sets immutable 1-year cache
+  headers on hashed build assets (all `IfModule`-guarded).
+- **`.env.example`** now recommends `file` session/cache drivers (no extra
+  DB tables, fastest on a laptop) and `APP_DEBUG=false` for production.
+
 ## Phase 6–7 — not started
 
 Library, inventory, notifications, report cards, promotion, a general
