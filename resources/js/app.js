@@ -1,9 +1,18 @@
-import './bootstrap';
 import * as bootstrapUi from 'bootstrap';
-import Chart from 'chart.js/auto';
 
 window.bootstrap = bootstrapUi;
-window.Chart = Chart;
+
+/*
+ * Chart.js is deliberately NOT imported here: it is ~200 KB and was
+ * previously shipped inside this bundle, i.e. downloaded and parsed on
+ * EVERY page of the app, while only the dashboard ever draws a chart.
+ * It now lives in its own entry (resources/js/dashboard.js), which the
+ * dashboard page loads on its own and which lazy-imports Chart.js only
+ * when a chart canvas is actually present - see vite.config.js inputs.
+ *
+ * axios (resources/js/bootstrap.js) was removed the same way: nothing in
+ * the app ever called it, so every page paid for it for nothing.
+ */
 
 /*
  * DataTables (jQuery-based) is intentionally NOT wired up yet - no Phase 1

@@ -4,36 +4,49 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Support\JalaliDate;
+use App\Support\SchemaInfo;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 /**
  * Computes every dashboard figure (master spec section 4) straight from
  * the database - never hard-coded. Modules that don't exist yet in this
- * phase are guarded with Schema::hasTable() and reported as 0 rather than
- * throwing, so the dashboard "lights up" automatically as later phases add
- * their tables without any changes needed here beyond removing the guard.
+ * phase are guarded with SchemaInfo (per-request memoized schema checks)
+ * and reported as 0 rather than throwing, so the dashboard "lights up"
+ * automatically as later phases add their tables.
+ *
+ * Performance notes (2026-11 pass): the per-request cost of this service
+ * was cut by grouping the card counts into single aggregate queries
+ * (one SELECT with SUM(CASE ...) instead of one COUNT per card) and by
+ * computing the users-by-role chart with one GROUP BY on the pivot tables
+ * instead of loading every user row into PHP. Schema checks go through
+ * SchemaInfo so information_schema is hit at most once per table per
+ * request. The date columns below are Shamsi strings (see
+ * App\Support\JalaliDate) - compared as plain strings, never with SQL date
+ * functions.
  */
 class DashboardStatsService
 {
     public function cards(): array
     {
+        $today = JalaliDate::today();
+        $students = $this->studentCounts();
+        $attendance = $this->todayAttendanceCounts($today);
+
         return [
-            'total_students' => $this->countIf('students'),
-            'male_students' => $this->countIf('students', ['gender' => 'male']),
-            'female_students' => $this->countIf('students', ['gender' => 'female']),
+            'total_students' => $students['total'],
+            'male_students' => $students['male'],
+            'female_students' => $students['female'],
             'total_teachers' => $this->countIf('teachers'),
             'total_staff' => $this->countIf('employees'),
             'total_classes' => $this->countIf('classes'),
-            // attendance_records.date is a Shamsi string (see
-            // App\Support\JalaliDate) - compare against today's Jalali
-            // date, not Gregorian today()->toDateString().
-            // For pure Teacher dashboard, scope attendance to their own
+            // attendance_records.date is a Shamsi string - compare against
+            // today's Jalali date, not Gregorian today()->toDateString().
+            // For a pure Teacher dashboard, scope attendance to their own
             // homeroom section(s) only - other roles see school-wide counts.
-            'today_attendance_marked' => $this->attendanceCount(['date' => JalaliDate::today()]),
-            'present_today' => $this->attendanceCount(['date' => JalaliDate::today(), 'status' => 'present']),
-            'absent_today' => $this->attendanceCount(['date' => JalaliDate::today(), 'status' => 'absent']),
-            'late_today' => $this->attendanceCount(['date' => JalaliDate::today(), 'status' => 'late']),
+            'today_attendance_marked' => $attendance['total'],
+            'present_today' => $attendance['present'],
+            'absent_today' => $attendance['absent'],
+            'late_today' => $attendance['late'],
             'pending_fees_amount' => $this->pendingFeesAmount(),
             'today_payments_amount' => $this->todayPaymentsAmount(),
             'upcoming_exams' => $this->upcomingExamsCount(),
@@ -41,50 +54,40 @@ class DashboardStatsService
         ];
     }
 
+    /**
+     * Role name => number of (non-deleted) users holding it, in ONE query
+     * over the spatie pivot tables - instead of hydrating every User model
+     * and counting their roles in PHP, which loaded the whole users table
+     * on every dashboard load.
+     *
+     * @return array<string, int>
+     */
     public function usersByRole(): array
     {
-        return User::query()
-            ->withCount('roles')
-            ->get()
-            ->flatMap(fn ($user) => $user->getRoleNames())
-            ->countBy()
-            ->sortDesc()
-            ->toArray();
-    }
-
-    public function recentAdmissions(int $limit = 5): array
-    {
-        return Schema::hasTable('students')
-            ? DB::table('students')->orderByDesc('created_at')->limit($limit)->get()->toArray()
-            : [];
-    }
-
-    public function recentPayments(int $limit = 5): array
-    {
-        return Schema::hasTable('payments')
-            ? DB::table('payments')->orderByDesc('created_at')->limit($limit)->get()->toArray()
-            : [];
-    }
-
-    public function recentAnnouncements(int $limit = 5): array
-    {
-        if (! Schema::hasTable('announcements')) {
+        if (! SchemaInfo::hasTable('model_has_roles') || ! SchemaInfo::hasTable('roles')) {
             return [];
         }
 
-        // Announcements table has published_at (nullable) + created_at -
-        // there is no publish_date column. Order by created_at so drafts
-        // (published_at = null) sort deterministically, and exclude
-        // soft-deleted rows (DB::table bypasses the SoftDeletes scope).
-        $query = DB::table('announcements');
+        $query = DB::table('model_has_roles')
+            ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+            ->where('model_has_roles.model_type', User::class)
+            ->groupBy('roles.name')
+            ->select('roles.name', DB::raw('count(*) as aggregate'));
 
-        if (Schema::hasColumn('announcements', 'deleted_at')) {
-            $query->whereNull('deleted_at');
+        // Match the previous Eloquent-based behaviour of ignoring
+        // soft-deleted user accounts.
+        if (SchemaInfo::hasTable('users') && SchemaInfo::hasColumn('users', 'deleted_at')) {
+            $query->join('users', function ($join) {
+                $join->on('users.id', '=', 'model_has_roles.model_id')
+                    ->whereNull('users.deleted_at');
+            });
         }
 
-        $orderColumn = Schema::hasColumn('announcements', 'created_at') ? 'created_at' : 'id';
-
-        return $query->orderByDesc($orderColumn)->limit($limit)->get()->toArray();
+        return $query->get()
+            ->sortByDesc('aggregate')
+            ->pluck('aggregate', 'name')
+            ->map(fn ($count) => (int) $count)
+            ->toArray();
     }
 
     /**
@@ -93,7 +96,7 @@ class DashboardStatsService
      */
     private function upcomingExamsCount(): int
     {
-        if (! Schema::hasTable('exams')) {
+        if (! SchemaInfo::hasTable('exams') || ! SchemaInfo::hasColumn('exams', 'start_date')) {
             return 0;
         }
 
@@ -113,11 +116,11 @@ class DashboardStatsService
      */
     private function pendingFeesAmount(): float
     {
-        if (! Schema::hasTable('fee_invoices') || ! Schema::hasTable('fee_payments')) {
+        if (! SchemaInfo::hasTable('fee_invoices') || ! SchemaInfo::hasTable('fee_payments')) {
             return 0;
         }
 
-        $currentYearId = Schema::hasTable('academic_years')
+        $currentYearId = SchemaInfo::hasTable('academic_years') && SchemaInfo::hasColumn('academic_years', 'is_active')
             ? DB::table('academic_years')->where('is_active', true)->value('id')
             : null;
 
@@ -136,7 +139,7 @@ class DashboardStatsService
 
     private function todayPaymentsAmount(): float
     {
-        if (! Schema::hasTable('fee_payments')) {
+        if (! SchemaInfo::hasTable('fee_payments') || ! SchemaInfo::hasColumn('fee_payments', 'payment_date')) {
             return 0;
         }
 
@@ -148,14 +151,14 @@ class DashboardStatsService
 
     private function countIf(string $table, array $where = []): int
     {
-        if (! Schema::hasTable($table)) {
+        if (! SchemaInfo::hasTable($table)) {
             return 0;
         }
 
         $query = DB::table($table);
 
         foreach ($where as $column => $value) {
-            if (Schema::hasColumn($table, $column)) {
+            if (SchemaInfo::hasColumn($table, $column)) {
                 $query->where($column, $value);
             }
         }
@@ -163,30 +166,77 @@ class DashboardStatsService
         return $query->count();
     }
 
-    private function attendanceCount(array $where = []): int
+    /**
+     * Total / male / female student counts in a single aggregate query
+     * (previously three separate COUNT queries).
+     *
+     * @return array{total: int, male: int, female: int}
+     */
+    private function studentCounts(): array
     {
-        if (! Schema::hasTable('attendance_records')) {
-            return 0;
+        $empty = ['total' => 0, 'male' => 0, 'female' => 0];
+
+        if (! SchemaInfo::hasTable('students')) {
+            return $empty;
         }
 
-        $query = DB::table('attendance_records');
+        $hasGender = SchemaInfo::hasColumn('students', 'gender');
 
-        foreach ($where as $column => $value) {
-            if (Schema::hasColumn('attendance_records', $column)) {
-                $query->where($column, $value);
-            }
+        $row = DB::table('students')
+            ->selectRaw('count(*) as total')
+            ->when($hasGender, fn ($q) => $q
+                ->selectRaw("sum(case when gender = 'male' then 1 else 0 end) as male")
+                ->selectRaw("sum(case when gender = 'female' then 1 else 0 end) as female"))
+            ->first();
+
+        return [
+            'total' => (int) ($row->total ?? 0),
+            'male' => (int) ($row->male ?? 0),
+            'female' => (int) ($row->female ?? 0),
+        ];
+    }
+
+    /**
+     * Today's marked/present/absent/late attendance counts in a single
+     * aggregate query (previously four separate COUNT queries), optionally
+     * scoped to a pure Teacher's own homeroom section(s).
+     *
+     * @return array{total: int, present: int, absent: int, late: int}
+     */
+    private function todayAttendanceCounts(string $today): array
+    {
+        $empty = ['total' => 0, 'present' => 0, 'absent' => 0, 'late' => 0];
+
+        if (! SchemaInfo::hasTable('attendance_records')
+            || ! SchemaInfo::hasColumn('attendance_records', 'date')
+            || ! SchemaInfo::hasColumn('attendance_records', 'status')) {
+            return $empty;
         }
+
+        $query = DB::table('attendance_records')->where('date', $today);
 
         // Pure Teacher sees only their own homeroom section(s).
         if ($this->isTeacherDashboard()) {
             $ids = $this->teacherSectionIds();
             if (empty($ids)) {
-                return 0;
+                return $empty;
             }
             $query->whereIn('section_id', $ids);
         }
 
-        return $query->count();
+        $row = $query
+            ->selectRaw('count(*) as total')
+            ->selectRaw("sum(case when status = 'present' then 1 else 0 end) as present")
+            ->selectRaw("sum(case when status = 'absent' then 1 else 0 end) as absent")
+            ->selectRaw("sum(case when status = 'late' then 1 else 0 end) as late")
+            ->first();
+
+        return [
+            'total' => (int) ($row->total ?? 0),
+            'present' => (int) ($row->present ?? 0),
+            'absent' => (int) ($row->absent ?? 0),
+            'late' => (int) ($row->late ?? 0),
+        ];
     }
 
     private function isTeacherDashboard(): bool

@@ -44,7 +44,12 @@
                 <div class="card-header bg-white fw-semibold">{{ __('app.chart_users_by_role') }}</div>
                 <div class="card-body">
                     @if (count($usersByRole))
-                        <canvas id="usersByRoleChart" height="220"></canvas>
+                        {{-- Chart data travels via data-* attributes; the chart
+                             itself is drawn by resources/js/dashboard.js, which
+                             lazy-loads Chart.js only on this page. --}}
+                        <canvas id="usersByRoleChart" height="220"
+                                data-labels='@json(array_keys($usersByRole))'
+                                data-values='@json(array_values($usersByRole))'></canvas>
                     @else
                         <p class="text-muted mb-0">{{ __('app.no_data_yet') }}</p>
                     @endif
@@ -87,25 +92,8 @@
     @endunless
 
     @if (count($usersByRole) && ! $isTeacherDashboard && ! $isPureParent)
-        @push('scripts')
-        @endpush
-        <script>
-            document.addEventListener('DOMContentLoaded', () => {
-                const ctx = document.getElementById('usersByRoleChart');
-                if (ctx && window.Chart) {
-                    new window.Chart(ctx, {
-                        type: 'doughnut',
-                        data: {
-                            labels: @json(array_keys($usersByRole)),
-                            datasets: [{
-                                data: @json(array_values($usersByRole)),
-                                backgroundColor: ['#0d6efd', '#198754', '#0dcaf0', '#ffc107', '#dc3545', '#6f42c1', '#20c997', '#fd7e14', '#6c757d', '#d63384'],
-                            }],
-                        },
-                        options: { plugins: { legend: { position: 'bottom' } } },
-                    });
-                }
-            });
-        </script>
+        {{-- Dashboard-only JS entry (draws the chart above, lazy-loading
+             Chart.js). Every other page never downloads this. --}}
+        @vite(['resources/js/dashboard.js'])
     @endif
 </x-layouts.app>

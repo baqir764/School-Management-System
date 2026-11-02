@@ -1,6 +1,42 @@
 AddType font/woff2 .woff2
 AddType font/woff .woff
 
+# --- Performance (2026-11): compress text responses + cache static assets.
+# Everything is wrapped in IfModule so hosts that disable these modules
+# (some shared hosts do) simply skip the block instead of erroring.
+# The app makes NO external requests at runtime - all CSS/JS/fonts are
+# local files under public/build and public/vendor - so it works fully
+# offline; these headers just make the local files load faster.
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/css text/xml
+    AddOutputFilterByType DEFLATE text/javascript application/javascript application/x-javascript
+    AddOutputFilterByType DEFLATE application/json application/xml image/svg+xml
+    AddOutputFilterByType DEFLATE font/woff font/woff2
+</IfModule>
+
+<IfModule mod_expires.c>
+    ExpiresActive On
+    # Vite-built assets are content-hashed (app-XXXX.js), so they can be
+    # cached "forever" safely - a new build gets new filenames.
+    ExpiresByType text/css "access plus 1 year"
+    ExpiresByType application/javascript "access plus 1 year"
+    ExpiresByType text/javascript "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType font/woff "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType image/x-icon "access plus 1 year"
+    # HTML must always be revalidated (it embeds CSRF tokens + flash data).
+    ExpiresByType text/html "access plus 0 seconds"
+</IfModule>
+
+<IfModule mod_headers.c>
+    <FilesMatch "\.(css|js|woff2?|png|jpe?g|svg|ico)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+</IfModule>
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes

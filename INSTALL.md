@@ -76,6 +76,22 @@ npm run build
 For active day-to-day development, `npm run dev` instead starts Vite in
 watch mode with hot reload.
 
+## 6b. One-time performance setup (recommended)
+
+```bat
+optimize.bat        REM Windows / XAMPP
+./optimize.sh       REM Linux/macOS
+```
+
+This applies the migrations (including the performance indexes) and runs
+`php artisan optimize`, which caches config, routes, views and events so
+every request is served from precompiled PHP files. The app needs **no
+internet at runtime** - all CSS/JS/fonts are already compiled into
+`public/build/` - and `PERFORMANCE.md` explains the PHP/MySQL settings
+(OPcache etc.) that make it fast on any laptop. Note: `storage:link` in
+step 5 is optional - uploads are served by an explicit route that works
+without the symlink.
+
 ## 7. Open the application
 
 Because the project lives directly under `htdocs`, Laravel's front

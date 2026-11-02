@@ -7,6 +7,12 @@
     "file": "assets/bootstrap-icons-mSm7cUeB.woff2",
     "src": "node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff2"
   },
+  "node_modules/chart.js/auto/auto.js": {
+    "file": "assets/auto-BF0bpoqT.js",
+    "name": "auto",
+    "src": "node_modules/chart.js/auto/auto.js",
+    "isDynamicEntry": true
+  },
   "resources/css/app-rtl.scss": {
     "file": "assets/app-rtl-CneD5Niw.css",
     "src": "resources/css/app-rtl.scss",
@@ -18,9 +24,18 @@
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-BLCLMPpl.js",
+    "file": "assets/app-Ge0cOsJS.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true
+  },
+  "resources/js/dashboard.js": {
+    "file": "assets/dashboard-Dy3bI9F3.js",
+    "name": "dashboard",
+    "src": "resources/js/dashboard.js",
+    "isEntry": true,
+    "dynamicImports": [
+      "node_modules/chart.js/auto/auto.js"
+    ]
   }
 }
