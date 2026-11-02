@@ -1,0 +1,10 @@
+{
+	"appId": "com.schoolmanagement.system",
+	"appName": "School Management System",
+	"webDir": "www",
+	"server": {
+		"allowNavigation": [
+			"*"
+		]
+	}
+}

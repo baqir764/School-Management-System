@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>School Management System</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<header class="topbar">
+  <button id="menu-btn" class="menu-btn" aria-label="menu">&#9776;</button>
+  <div class="app-name" data-i18n="app_name">School Management</div>
+  <span class="offline-badge">OFFLINE</span>
+</header>
+<div id="drawer" class="drawer hidden">
+  <button class="nav-item active" data-screen="dashboard">Dashboard</button>
+  <button class="nav-item" data-screen="students">Students</button>
+  <button class="nav-item" data-screen="teachers">Teachers & Staff</button>
+  <button class="nav-item" data-screen="academics">Academics</button>
+  <button class="nav-item" data-screen="parents">Parents</button>
+  <button class="nav-item" data-screen="timetable">Timetable</button>
+  <button class="nav-item" data-screen="attendance">Attendance</button>
+  <button class="nav-item" data-screen="staff-attendance">Staff attendance</button>
+  <button class="nav-item" data-screen="announcements">Announcements</button>
+  <button class="nav-item" data-screen="exams">Exams & Marks</button>
+  <button class="nav-item" data-screen="fees">Fees & Payments</button>
+  <button class="nav-item" data-screen="finance">Finance & Payroll</button>
+  <button class="nav-item" data-screen="users">Users & Permissions</button>
+  <button class="nav-item" data-screen="settings">Settings</button>
+  <!-- Kept hidden for compatibility with the legacy attendance controller. -->
+  <button id="tab-attendance" class="hidden" aria-hidden="true">Attendance</button>
+  <button id="tab-settings" class="hidden" aria-hidden="true">Settings</button>
+  <button id="tab-live" class="hidden" aria-hidden="true">Live Site</button>
+  <button id="btn-live-attendance" class="hidden" aria-hidden="true">Offline Attendance</button>
+  <button id="btn-reset" data-i18n="reset_today">Reset Attendance</button>
+</div>
+
+<main>
+  <section id="screen-dashboard" class="screen">
+    <div class="screen-heading"><div><p class="eyebrow">School Management</p><h1>Dashboard</h1></div><span class="mode-chip">Local device</span></div>
+    <div class="stat-grid" id="dashboard-stats"></div>
+    <div class="panel-grid">
+      <article class="panel"><h2>Quick actions</h2><div class="action-grid">
+        <button class="action-card" data-screen="students"><strong>＋</strong><span>Add student</span></button>
+        <button class="action-card" data-screen="attendance"><strong>✓</strong><span>Mark attendance</span></button>
+        <button class="action-card" data-screen="fees"><strong>▣</strong><span>Record payment</span></button>
+        <button class="action-card" data-screen="exams"><strong>★</strong><span>Enter marks</span></button>
+      </div></article>
+      <article class="panel"><h2>Offline status</h2><p class="status-line"><span class="status-dot"></span><span>All records are stored on this device.</span></p><p class="muted">No internet connection is required for the offline modules.</p><div id="database-status" class="small-status">Opening local database…</div></article>
+    </div>
+  </section>
+
+  <section id="screen-students" class="screen hidden">
+    <div class="screen-heading"><div><p class="eyebrow">People</p><h1>Students</h1></div><button class="primary" data-action="empty">＋ Add student</button></div>
+    <div class="toolbar"><input id="student-search" type="search" placeholder="Search students locally"><span id="student-count" class="muted"></span></div>
+    <div id="student-list" class="data-list"></div>
+  </section>
+
+  <section id="screen-teachers" class="screen hidden">
+    <div class="screen-heading"><div><p class="eyebrow">People</p><h1>Teachers & Staff</h1></div><button class="primary" data-action="empty">＋ Add person</button></div>
+    <div class="feature-grid"><button class="feature-card" data-action="empty"><strong>Teachers</strong><span>Manage teaching staff and subjects</span></button><button class="feature-card" data-action="empty"><strong>Employees</strong><span>Manage school employees and payroll profiles</span></button><button class="feature-card" data-action="empty"><strong>Staff attendance</strong><span>Record daily staff presence offline</span></button></div>
+    <div class="empty-state"><strong>Local staff module ready</strong><span>The database foundation is ready for teacher and employee records.</span></div>
+  </section>
+
+  <section id="screen-academics" class="screen hidden">
+    <div class="screen-heading"><div><p class="eyebrow">School structure</p><h1>Academics</h1></div></div>
+    <div class="feature-grid"><button class="feature-card" data-action="empty"><strong>Academic years</strong><span>Set active school years</span></button><button class="feature-card" data-action="empty"><strong>Classes & sections</strong><span>Organize student groups</span></button><button class="feature-card" data-action="empty"><strong>Subjects</strong><span>Manage curriculum subjects</span></button><button class="feature-card" data-action="empty"><strong>Timetable</strong><span>Build weekly class schedules</span></button></div>
+  </section>
+
+  <!-- ============ OFFLINE ATTENDANCE ============ -->
+  <section id="screen-attendance" class="screen hidden">
+    <div class="screen-heading"><div><p class="eyebrow">Daily operations</p><h1>Attendance</h1></div><span class="mode-chip">Offline</span></div>
+    <label data-i18n="field_date">Date</label>
+    <div class="row" id="att-date-row"><select id="att-year"></select><select id="att-month"></select><select id="att-day"></select></div>
+    <input id="att-date" type="hidden">
+    <div class="qr-box"><div id="qr-reader" class="hidden"></div><p class="hint" data-i18n="camera_hint">hint</p><div class="row"><button id="btn-cam-on" data-i18n="camera_on">Start Camera</button><button id="btn-cam-off" class="hidden" data-i18n="camera_off">Stop Camera</button><button id="btn-zoom-in" class="hidden">+</button><button id="btn-zoom-out" class="hidden">-</button></div><div id="qr-error" class="error hidden"></div><div id="roster-preview" class="hint"></div></div>
+    <h3><span data-i18n="today">Today</span> (<span id="pending-count">0</span>)</h3><div id="pending-list"><p class="muted" data-i18n="no_data">No data</p></div>
+    <div class="row"><button id="btn-excel" class="primary" data-i18n="attendance_export">Export Excel</button></div><div id="sync-result" class="hidden"></div>
+  </section>
+
+  <section id="screen-parents" class="screen hidden"><div id="stage4-parents"></div></section>
+  <section id="screen-timetable" class="screen hidden"><div id="stage4-timetable"></div></section>
+  <section id="screen-staff-attendance" class="screen hidden"><div id="stage4-staff-attendance"></div></section>
+  <section id="screen-announcements" class="screen hidden"><div id="stage4-announcements"></div></section>
+
+  <section id="screen-exams" class="screen hidden">
+    <div class="screen-heading"><div><p class="eyebrow">Assessment</p><h1>Exams & Marks</h1></div></div>
+    <div class="feature-grid"><button class="feature-card" data-action="empty"><strong>Exams</strong><span>Create exams and attach subjects</span></button><button class="feature-card" data-action="empty"><strong>Marks entry</strong><span>Enter and review student marks</span></button><button class="feature-card" data-action="empty"><strong>Grade scales</strong><span>Configure letter grades and bands</span></button><button class="feature-card" data-action="empty"><strong>Results</strong><span>View student result summaries</span></button></div>
+  </section>
+
+  <section id="screen-fees" class="screen hidden">
+    <div class="screen-heading"><div><p class="eyebrow">Collections</p><h1>Fees & Payments</h1></div></div>
+    <div class="stat-grid compact-stats"><div class="stat-card"><span>Invoices</span><strong id="fee-count">0</strong></div><div class="stat-card"><span>Payments</span><strong id="payment-count">0</strong></div></div>
+    <div class="feature-grid"><button class="feature-card" data-action="empty"><strong>Fee structures</strong><span>Define school and class fees</span></button><button class="feature-card" data-action="empty"><strong>Invoices</strong><span>Generate and track student invoices</span></button><button class="feature-card" data-action="empty"><strong>Payments</strong><span>Record payments and print receipts</span></button></div>
+  </section>
+
+  <section id="screen-finance" class="screen hidden">
+    <div class="screen-heading"><div><p class="eyebrow">Administration</p><h1>Finance & Payroll</h1></div></div>
+    <div class="feature-grid"><button class="feature-card" data-action="empty"><strong>Payroll</strong><span>Employees, salaries, and vouchers</span></button><button class="feature-card" data-action="empty"><strong>Expenses</strong><span>Record and categorize expenses</span></button><button class="feature-card" data-action="empty"><strong>Other income</strong><span>Track miscellaneous income</span></button><button class="feature-card" data-action="empty"><strong>Finance overview</strong><span>Review local income and expense totals</span></button></div>
+  </section>
+
+  <section id="screen-users" class="screen hidden"><div id="stage5-users"></div></section>
+
+  <section id="screen-settings" class="screen hidden">
+    <div class="screen-heading"><div><p class="eyebrow">Application</p><h1 data-i18n="nav_school_settings">Settings</h1></div></div>
+    <input id="set-server" type="hidden" value="">
+    <div class="panel"><h2>Language</h2><label data-i18n="language">Language</label><select id="set-lang"><option value="fa">دری</option><option value="ps">پښتو</option><option value="en">English</option></select><button id="btn-settings-save" class="primary" data-i18n="save_changes">Save</button></div>
+    <div class="panel"><h2>Data safety</h2><p class="muted">Your records are stored locally on this device. Backup and restore will be added in the next stage.</p><button class="secondary" data-action="empty">Export local backup</button></div>
+  </section>
+</main>
+
+<script src="vendor/html5-qrcode.min.js"></script>
+<script src="vendor/xlsx.full.min.js"></script>
+<script src="js/jalali.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/offline-db.js"></script>
+<script src="js/store.js"></script>
+<script src="js/app.js"></script>
+<script src="js/stage2-ui.js"></script>
+<script src="js/stage3-common.js"></script>
+<script src="js/stage3-ui.js"></script>
+<script src="js/stage4-ui.js"></script>
+<script src="js/stage5-ui.js"></script>
+</body>
+</html>

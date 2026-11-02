@@ -1,0 +1,293 @@
+/*
+ * School Management System - shared UI overrides layered on top of
+ * whichever Bootstrap build (LTR or RTL) the current locale loaded.
+ * Kept logical-property-friendly (start/end rather than left/right) so it
+ * behaves correctly in both directions.
+ */
+
+:root {
+    --sms-sidebar-width: 260px;
+    --sms-topbar-height: 60px;
+    --sms-primary: #0d6efd;
+}
+
+body {
+    min-height: 100vh;
+    background-color: #f5f7fb;
+    /* The app shell scrolls inside .sms-page (below) so the page's
+       scrollbar can dock on the menu side - never let the window itself
+       scroll, or the scrollbar would sit on the document's opposite edge. */
+    overflow: hidden;
+}
+
+/*
+ * Main page scroller. The sidebar is the fixed/sticky element beside this
+ * flexible column; this column owns the page scroll.
+ *
+ * Scrollbar docking follows the sidebar: in the default LTR build the menu
+ * is on the left, so the column runs as an RTL box that pins its vertical
+ * scrollbar on the left edge - right against the menu. .sms-page-inner
+ * restores the real content direction, so text keeps flowing LTR.
+ */
+.sms-page {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    direction: rtl;
+    /* Cute minimal modern scrollbar (Firefox). */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(13, 110, 253, .38) transparent;
+}
+
+.sms-page-inner {
+    direction: ltr;
+}
+
+/* RTL builds (Dari/Pashto) put the sidebar on the right, so flip the
+   scroller back to LTR - its scrollbar then docks on the right edge,
+   still hugging the menu while the inner wrapper re-applies RTL content. */
+[dir="rtl"] .sms-page {
+    direction: ltr;
+}
+
+[dir="rtl"] .sms-page-inner {
+    direction: rtl;
+}
+
+/* Slim recessed pill (Chromium/Safari): transparent gutter flush against
+   the menu, subtle blue thumb that glows on hover. */
+.sms-page::-webkit-scrollbar {
+    width: 12px;
+}
+
+.sms-page::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sms-page::-webkit-scrollbar-thumb {
+    background: rgba(100, 116, 139, .32);
+    border: 3px solid #f5f7fb;
+    border-radius: 999px;
+}
+
+.sms-page::-webkit-scrollbar-thumb:hover {
+    background: rgba(13, 110, 253, .55);
+    border-color: #f5f7fb;
+}
+
+.sms-sidebar {
+    width: var(--sms-sidebar-width);
+    /* Frozen header pattern: the sidebar itself is a full-viewport sticky
+       flex column; only the nav scrolls, so the school-name brand row on
+       top (and the footer note at the bottom) never scroll away. */
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: #101828;
+    color: #e5e7eb;
+}
+
+.sms-sidebar-brand {
+    flex-shrink: 0;
+}
+
+.sms-sidebar-nav {
+    flex: 1 1 auto;
+    min-height: 0;
+    /* Bootstrap's .nav wraps by default; in a height-constrained scroll
+       box that would spill items into side columns instead of scrolling
+       vertically - force a single vertical column. */
+    flex-wrap: nowrap;
+    /* Pin the scrollbar to the right edge in every locale: in RTL pages
+       browsers dock it on the left, so the nav scrolls as LTR while the
+       inner wrapper below re-applies the page direction to the content. */
+    direction: ltr;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    /* Cute minimal modern scrollbar (Firefox). */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, .28) transparent;
+}
+
+.sms-sidebar-nav-inner {
+    min-width: 0;
+}
+
+[dir="rtl"] .sms-sidebar-nav-inner {
+    direction: rtl;
+}
+
+/* Cute minimal modern scrollbar (Chromium/Safari): slim pill thumb on a
+   transparent track, glowing a little on hover. */
+.sms-sidebar-nav::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sms-sidebar-nav::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sms-sidebar-nav::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, .22);
+    border-radius: 999px;
+}
+
+.sms-sidebar-nav::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, .42);
+}
+
+.sms-sidebar-foot {
+    flex-shrink: 0;
+}
+
+.sms-sidebar .nav-link {
+    color: #cbd5e1;
+    border-radius: .5rem;
+    margin-bottom: .125rem;
+}
+
+.sms-sidebar .nav-link.active,
+.sms-sidebar .nav-link:hover {
+    background: rgba(255, 255, 255, .08);
+    color: #fff;
+}
+
+// Collapsible submenu toggle (e.g. the Attendance group). Deliberately
+// NOT .nav-link: the mobile drawer script closes on every .nav-link tap,
+// which would shut the drawer the moment the toggle is pressed.
+.sms-sidebar .nav-submenu-toggle {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: .5rem 1rem;
+    background: transparent;
+    border: 0;
+    color: #cbd5e1;
+    border-radius: .5rem;
+    margin-bottom: .125rem;
+}
+
+.sms-sidebar .nav-submenu-toggle.active,
+.sms-sidebar .nav-submenu-toggle:hover,
+.sms-sidebar .nav-submenu-toggle[aria-expanded="true"] {
+    background: rgba(255, 255, 255, .08);
+    color: #fff;
+}
+
+.sms-sidebar .nav-submenu-toggle .bi-chevron-down {
+    transition: transform .2s;
+    font-size: .75rem;
+}
+
+.sms-sidebar .nav-submenu-toggle[aria-expanded="true"] .bi-chevron-down {
+    transform: rotate(180deg);
+}
+
+.sms-sidebar .nav-section-title {
+    font-size: .7rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: #64748b;
+    padding: .75rem 1rem .25rem;
+}
+
+.sms-topbar {
+    height: var(--sms-topbar-height);
+    background: #fff;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.sms-stat-card {
+    border: 1px solid #e5e7eb;
+    border-radius: .75rem;
+    background: #fff;
+    transition: box-shadow .15s ease;
+}
+
+.sms-stat-card:hover {
+    box-shadow: 0 4px 14px rgba(15, 23, 42, .06);
+}
+
+.sms-stat-card .sms-stat-icon {
+    width: 3rem;
+    height: 3rem;
+    border-radius: .75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+.sms-auth-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #0d6efd 0%, #101828 100%);
+}
+
+.sms-auth-card {
+    width: 100%;
+    max-width: 420px;
+    border: 0;
+    border-radius: 1rem;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, .2);
+}
+
+/* Mobile off-canvas sidebar backdrop (inserted by JS in app.js). */
+.sms-sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, .5);
+    z-index: 1040;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s ease;
+}
+
+.sms-sidebar-backdrop.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+@media (max-width: 991.98px) {
+    body.sms-sidebar-open {
+        /* Lock page scroll while the off-canvas menu is open, but keep
+           the sidebar itself scrollable (see .sms-sidebar below). */
+        overflow: hidden;
+    }
+
+    .sms-sidebar {
+        position: fixed;
+        inset-inline-start: 0;
+        top: 0;
+        bottom: 0;
+        height: auto;
+        width: min(var(--sms-sidebar-width), 85vw);
+        z-index: 1045;
+        transform: translateX(-100%);
+        transition: transform .2s ease;
+    }
+
+    [dir="rtl"] .sms-sidebar {
+        transform: translateX(100%);
+    }
+
+    .sms-sidebar.show {
+        transform: translateX(0);
+        /* Subtle shadow only while visible, so it reads as floating
+           over the backdrop rather than as an empty dark strip. */
+        box-shadow: 0 0 24px rgba(0, 0, 0, .35);
+    }
+}
